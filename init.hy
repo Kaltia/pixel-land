@@ -1,5 +1,11 @@
 (import pygame)
 
+(defreader p [expr] `(if ~(nth expr 0)
+                         [~(nth expr 1) ~(nth expr 2)]
+                         ~(lif (nth expr 3)
+                               [(nth expr 1) (nth expr 3)]
+                               nil)))
+
 ;; Impure function - merge dict2 onto dict1
 (defn merge_dicts [dict1 dict2]
   (do
@@ -9,8 +15,9 @@
 (defn list-to-dict [func]
   (defn wrap [&rest args]
     (dict
-     (filter (fn [e] (not (nil? e)))
-             (map pair-or-nil (apply func args))))))
+     (filter (fn [e] (do (print e)
+                         (not (nil? e))))
+             (apply func args)))))
 
 (defn pair-or-nil [element]
   (do
@@ -39,24 +46,23 @@
 (with-decorator list-to-dict (defn update [event state]
   [
    ;; Verify if the close button was pushed
-   [(and (not (nil? event))
-         (!= (get state 'limit) True)
+   #p[(and (not (nil? event))
          (= event.type pygame.QUIT)) 'limit True ]
 
    ;; Verify if the color is blue else return orange color
-   [(get state 'is_blue) 'color_rect [0 128 255] [255 100 0]]
+   #p[(get state 'is_blue) 'color_rect [0 128 255] [255 100 0]]
 
    ;; Change the color if the key space was typed
-   [(and
+   #p[(and
      (not (nil? event))
      (= event.type pygame.KEYDOWN)
      (= event.key pygame.K_SPACE)) 'is_blue (not (get state 'is_blue))]
 
-   [(nil? event) 'rect_instance (if (nil? event)( do
-                                  (setv rect (get state 'rect_instance))
+   #p[(nil? event) 'rect_instance (do
+                                  (setv rect (.copy (get state 'rect_instance)))
                                   (setv rect.x (+ rect.x 1))
                                   rect)
-                                  )]
+                                  ]
    ]))
 
 (defn draw [state]
