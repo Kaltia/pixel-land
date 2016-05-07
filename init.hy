@@ -15,18 +15,9 @@
 (defn list-to-dict [func]
   (defn wrap [&rest args]
     (dict
-     (filter (fn [e] (do (print e)
+     (filter (fn [e] (do (if e (print e))
                          (not (nil? e))))
              (apply func args)))))
-
-(defn pair-or-nil [element]
-  (do
-   (print element)
-   (cond
-    [(get element 0) [(get element 1) (get element 2)]]
-    [(not (nil? (nth element 3))) [(get element 1) (nth element 3)]]
-    [True  nil]
-   )))
 
 
 ;; Get the base state -  prefered this way instead setv function
@@ -34,7 +25,6 @@
   {
        'screen (pygame.display.set_mode [400 300]) ;; Set the window size
        'fondo (pygame.image.load "./assets/img/snow-background.png")
-       'is_blue True ;; Verify is the actual color is blue
        'limit False  ;; Set to true only if you close the window
        'color_rect [0 128 255] ;; Color of the rect
        'rect_instance (.Rect pygame 30 30 60 60) ;; Rect that will be drawn
@@ -48,15 +38,6 @@
    ;; Verify if the close button was pushed
    #p[(and (not (nil? event))
          (= event.type pygame.QUIT)) 'limit True ]
-
-   ;; Verify if the color is blue else return orange color
-   #p[(get state 'is_blue) 'color_rect [0 128 255] [255 100 0]]
-
-   ;; Change the color if the key space was typed
-   #p[(and
-     (not (nil? event))
-     (= event.type pygame.KEYDOWN)
-     (= event.key pygame.K_SPACE)) 'is_blue (not (get state 'is_blue))]
 
    #p[(nil? event) 'rect_instance (do
                                   (setv rect (.copy (get state 'rect_instance)))
