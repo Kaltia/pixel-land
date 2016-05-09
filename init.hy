@@ -28,15 +28,30 @@
        'is_blue True
        'limit False  ;; Set to true only if you close the window
        'color_rect [0 128 255] ;; Color of the rect
-       'rect_instance (.Rect pygame 30 30 60 60) ;; Rect that will be drawn
+       'rect_instance (.Rect pygame 30 150 60 60) ;; Rect that will be drawn
        'clock (pygame.time.Clock)
-   })
+       'offset-y 0
+       'jump False
+})
 
 
-(defn regulation [&rest args] args)
+(defmacro regulation [&rest args] `(defn updates [] (unquote args)))
+(defmacro draw [&rest args]
+  `(defn painting [state]
+     (setv strokes ~args)
+     (for [view strokes]
 
-(defn updates []
-  (regulation
+       (apply (get view 1) (map (fn [key] (get state key)) (get view 0)))
+
+       ))
+  )
+
+
+;;
+(defmacro brushstroke [req stroke]
+  `(, '(~@req) (fn [~@req] ~stroke)))
+
+(regulation
    ;; Verify if the close button was pushed
    (rule 'limit (and (not (nil? event))
                      (= event.type pygame.QUIT)) True)
@@ -44,25 +59,60 @@
    (rule 'rect_instance (nil? event) (do
                                         (setv rect (.copy (get state 'rect_instance)))
                                         (setv rect.x (+ rect.x 1))
+                                        (setv rect.y (+ rect.y (get state 'offset-y)))
                                         rect))
+
+   (rule 'rect_instance (and (nil? event) (>= (do (setv rect (get state 'rect_instance)) rect.x) 400) )
+         (do
+          (setv rect (.copy (get state 'rect_instance)))
+          (setv rect.x -60)
+          rect))
+
    (rule 'is_blue (and
                    (not (nil? event))
                    (= event.type pygame.KEYDOWN)
                    (= event.key pygame.K_SPACE)) (not (get state 'is_blue)))
+
+   (rule 'jump (and
+                (not (nil? event))
+                (= (get state 'offset-y) 0)
+                (= event.type pygame.KEYDOWN)
+                (= event.key pygame.K_SPACE)) True)
+
+
+   (rule 'jump (and (nil? event)
+                    (>= (get state 'offset-y) 10)) False)
+   (rule 'offset-y (and (nil? event)
+                        (get state 'jump)
+                        (= (get state 'offset-y) 0)) -1)
+
+   (rule 'offset-y (and (nil? event) (<= (get state 'offset-y) -10)) 1)
+
+   (rule 'offset-y (and (nil? event)
+                    (get state 'jump)
+                    (<= (get state 'offset-y) -1)
+                    (>= (get state 'offset-y) -10))   (- (get state  'offset-y) 1))
+
+   (rule 'offset-y (and (nil? event) (>= (get state 'offset-y) 10)) 0)
+
+   (rule 'offset-y (and
+                    (nil? event)
+                    (get state 'jump)
+                    (>= (get state 'offset-y) 1)
+                    (<= (get state 'offset-y) 10)) (+ (get state 'offset-y) 1))
    )
-  )
+
 
 ;; Return
 (with-decorator list-to-dict (defn update [event state]
   (map (fn [f]  (apply f [event state])) (updates))))
 
-(defn draw [state]
-  (do
-   (.blit (get state 'screen) (get state 'fondo) '(0 0))
-   (pygame.draw.rect
-    (get state 'screen)
-    (get state 'color_rect)
-    (get state 'rect_instance)))) ;; Draw the rect
+(draw
+ (brushstroke [screen fondo]
+              (.blit screen fondo '(0 0)))
+ (brushstroke [screen color_rect rect_instance]
+              (pygame.draw.rect screen color_rect rect_instance))
+ )
 
 (defmain [&rest args]
   (do
@@ -74,5 +124,5 @@
       (for [event (pygame.event.get)]
         (merge_dicts state (update event state))
         (else (merge_dicts state (update nil state))))
-      (draw state)
+      (painting state)
       (pygame.display.flip)))))
